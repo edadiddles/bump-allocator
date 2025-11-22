@@ -39,7 +39,8 @@ fn alloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usize) ?[*
     const new_offset = adj_offset + n;
     if (new_offset >= self.buffer.len) return null;
     self.offset = new_offset;
-    
+
+    std.debug.print("alloc return: {*}\n", .{self.buffer.ptr + adj_offset}); 
     return self.buffer.ptr + adj_offset;
 }
 
@@ -67,10 +68,10 @@ fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: u
 
 fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, return_address: usize) void {
     const self: *BumpAllocator = @ptrCast(@alignCast(ctx));
-    _ = self;
-    _ = buf;
     _ = alignment;
     _ = return_address;
+    
+    self.offset -= buf.len;
 }
 
 var test_fixed_buffer_allocator_memory: [800000 * @sizeOf(u64)]u8 = undefined;
@@ -79,9 +80,13 @@ test "alloc" {
     var bump_allocator = BumpAllocator.init(test_fixed_buffer_allocator_memory[0..]);
     const a = bump_allocator.allocator();
 
-    for(0..100) |i| {
+    for(0..10) |i| {
         std.debug.print("---- {} ----\n", .{ i });
-        _ = try a.alloc(u8, 8);
+        const b = try a.alloc(u8, 8);
+        if (i % 2 > 0) {
+            a.free(b);
+            a.free(b);
+        }
     }
         
 }
