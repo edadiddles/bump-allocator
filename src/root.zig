@@ -46,12 +46,15 @@ fn alloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usize) ?[*
 
 fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_size: usize, return_address: usize) bool {
     const self: *BumpAllocator = @ptrCast(@alignCast(ctx));
-    _ = self;
-    _ = buf;
     _ = alignment;
-    _ = new_size;
     _ = return_address;
 
+    if (buf.ptr + buf.len != self.buffer.ptr + self.offset) { return false; }
+    if (new_size >= self.buffer.len) { return false; }
+
+    self.offset = self.offset - buf.len + new_size;
+
+    std.debug.print("buffer resized: {d}\n", .{ new_size });
     return false;
 }
 
@@ -70,8 +73,8 @@ fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, return_address
     const self: *BumpAllocator = @ptrCast(@alignCast(ctx));
     _ = alignment;
     _ = return_address;
-    if(self.buffer.ptr + self.offset - buf.len != buf.ptr) return;
-    
+
+    if (buf.ptr + buf.len != self.buffer.ptr + self.offset) { return; }
     self.offset -= buf.len;
 }
 
@@ -79,15 +82,15 @@ var test_fixed_buffer_allocator_memory: [800000 * @sizeOf(u64)]u8 = undefined;
 var test_small_fixed_buffer_allocator_memory: [8 * @sizeOf(u64)]u8 align(@alignOf(u64)) = undefined;
 test "alloc" {
     var bump_allocator = BumpAllocator.init(test_fixed_buffer_allocator_memory[0..]);
-    const a = bump_allocator.allocator();
+    var a = bump_allocator.allocator();
 
     for(0..10) |i| {
         std.debug.print("---- {} ----\n", .{ i });
-        const b = try a.alloc(u8, 8);
-        if (i % 2 > 0) {
+        const b = try a.alloc(u8, 16);
+        if (i % 3 == 0) {
             a.free(b);
-            a.free(b);
+        } else if (i % 3 == 1) {
+            if (a.resize(b, 5)) { @memcpy(b[0..], "hello"[0..]); }
         }
     }
-        
 }
