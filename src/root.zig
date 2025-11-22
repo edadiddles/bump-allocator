@@ -70,6 +70,7 @@ fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, return_address
     const self: *BumpAllocator = @ptrCast(@alignCast(ctx));
     _ = alignment;
     _ = return_address;
+    if(self.buffer.ptr + self.offset - buf.len != buf.ptr) return;
     
     self.offset -= buf.len;
 }
